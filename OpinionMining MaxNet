@@ -1,0 +1,106 @@
+package Classify;
+
+import Tokenizer.*;
+
+import java.io.File;
+import java.io.IOException;
+
+public class OpinionMining {
+
+    File OM; 
+    String[] Categories;
+    DynamicLMClassifier<TokenizedLM> omClassifier; 
+
+    OpinionMining(String[] args) {
+        System.out.println("\nML Project (Opinion Mining on Movie Reviews)");
+        OM = new File(args[0],"txt_sentoken");
+        System.out.println("\nDataSet Directory=" + OM);
+        Categories = OM.list();
+        TokenizerFactory factory = new IndoEuropeanTokenizerFactory();
+        int charNGramLength = 4;
+        System.out.println("\nCharNGramLength = " + charNGramLength);
+        System.out.println("\nTest fold is 5");
+        System.out.println("\nNaive Bayes Classifier ");
+        omClassifier = new NaiveBayesClassifier(Categories,factory,charNGramLength);
+        }
+      
+    boolean isTrainingFile(File file) {
+        return file.getName().charAt(2) != '5';  
+        
+    }
+
+    public void train() throws IOException{
+        int TrainingCases = 0;
+        int TrainingChars = 0;
+        System.out.println("\nTraining Results: ");
+        for (int i = 0; i < Categories.length; ++i) {
+            String category = Categories[i];
+            Classification classification
+                = new Classification(category);
+            File file = new File(OM,Categories[i]);
+            File[] trainFiles = file.listFiles();
+            for (int j = 0; j < trainFiles.length; ++j) {
+                File trainFile = trainFiles[j];
+                if (isTrainingFile(trainFile)) {
+                    ++TrainingCases;
+                    String review;
+  				review = Files.readFromFile(trainFile,"UTF-8");
+						TrainingChars += review.length();
+		                    Classified<CharSequence> classified
+		                        = new Classified<CharSequence>(review,classification);
+		                    omClassifier.handle(classified);
+		                    System.out.println("" + classified );	
+                }
+               
+            }
+                }
+        System.out.println("  # Training Cases=" + TrainingCases);
+
+        System.out.println("  # Training Chars=" + TrainingChars);
+    }
+
+    public void evaluate() throws IOException {
+        System.out.println("\nEvaluating Results:");
+        int Tests = 0;
+        int Correct = 0;
+        for (int i = 0; i < Categories.length; ++i) {
+            String category = Categories[i];
+            File file = new File(OM,Categories[i]);
+            File[] trainFiles = file.listFiles();
+            for (int j = 0; j < trainFiles.length; ++j) {
+                File trainFile = trainFiles[j];
+                if (!isTrainingFile(trainFile)) {
+                    String review;
+					
+						review = Files.readFromFile(trainFile,"UTF-8");
+						++Tests;
+	                    Classification classification
+	                        = omClassifier.classify(review);
+	                    
+	                    if (classification.bestCategory().equals(category))
+	                        ++Correct;
+	                   //System.out.println("" + classification );				
+                }
+            }
+        }
+        System.out.println("  # Test Cases=" + Tests);
+        System.out.println("  # Correct=" + Correct);
+        System.out.println("  % Correct=" 
+                           + ((double)Correct)/(double)Tests);
+    }
+    void run() throws ClassNotFoundException, IOException {
+        train();
+        evaluate();
+    }
+    public static void main(String[] args) {
+    	 try {
+             new OpinionMining(args).run();
+         } catch (Throwable t) {
+             System.out.println("Thrown: " + t);
+             t.printStackTrace(System.out);
+         }
+        
+    }
+
+}
+
